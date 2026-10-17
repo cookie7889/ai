@@ -1,0 +1,21 @@
+# зависимости (корень opencode; package.json внутри скиллов — в репозиторий)
+/node_modules/
+/package.json
+/package-lock.json
+/bun.lock
+**/node_modules/
+
+# секреты и машинные данные (только локально, не в репозиторий)
+.bitrix24/
+.figma/
+skills/.env
+skills-data/
+.env
+.env.*
+!.env.example
+
+# мусор
+*.log
+login-fail.png
+.DS_Store
+*.tmp
