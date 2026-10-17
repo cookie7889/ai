@@ -6,13 +6,10 @@ description: Доступ к Битрикс24 пользователя (imagemar
 # Битрикс24 через входящий вебхук
 
 Пользователь: Вячеслав Климов, user ID **424**, портал imagemark.bitrix24.ru.
-Пути и секреты — в `~/.config/opencode/skills/.env` (машинно-зависимый файл).
+Секреты — в `~/.config/opencode/skills/.env` (`BITRIX24_WEBHOOK`). НИКОГДА не выводи вебхук.
 Перед вызовами: `set -a; . ~/.config/opencode/skills/.env; set +a`
 
-Вебхук: `$BITRIX24_DIR/webhook` — НИКОГДА не выводи его содержимое.
-Права вебхука: task, tasks, im, imbot, user, sonet_group, disk, ai_admin.
-
-Вызов: `$BITRIX24_DIR/b24 <method> '<json-params>'` (POST JSON, ответ JSON). Парсить через python3.
+Скрипт: `~/.config/opencode/skills/bitrix24/b24 <method> '<json-params>'` (POST JSON, ответ JSON; сам читает .env). Парсить через python3.
 
 ## Частые методы
 

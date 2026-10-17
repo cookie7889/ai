@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""b24 <method> '<json-params>' — вызов REST Битрикс24 через вебхук.
+
+Webhook берётся из $BITRIX24_WEBHOOK (skills/.env) или из файла
+$BITRIX24_WEBHOOK_FILE / соседнего webhook (legacy). Ответ — JSON в stdout.
+"""
+import http.client
+import json
+import os
+import pathlib
+import socket
+import sys
+from urllib.parse import urlparse
+
+# До части сетей (Bitrix) Path MTU сломан: TLS ServerHello >~1450 B не доходит,
+# а ICMP frag-needed не проходит. Клампим MSS, чтобы пакеты влезали в ~1440.
+MSS_CLAMP = 1360
+
+
+def load_skills_env() -> None:
+    """Загрузить skills/.env, не затирая уже заданные переменные окружения."""
+    if os.environ.get("OPENCODE_SKILLS_ENV"):
+        candidates = [pathlib.Path(os.environ["OPENCODE_SKILLS_ENV"])]
+    else:
+        # b24 лежит в skills/bitrix24/ → .env в skills/
+        candidates = [pathlib.Path(__file__).resolve().parent.parent / ".env"]
+    for p in candidates:
+        if not p.is_file():
+            continue
+        for line in p.read_text().splitlines():
+            s = line.strip()
+            if not s or s.startswith("#") or "=" not in s:
+                continue
+            k, v = s.split("=", 1)
+            k = k.strip()
+            v = v.strip().strip('"').strip("'")
+            if k and k not in os.environ:
+                os.environ[k] = v
+
+
+class MssHTTPSConnection(http.client.HTTPSConnection):
+    def connect(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(self.timeout)
+        try:
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_MAXSEG, MSS_CLAMP)
+        except OSError:
+            pass
+        sock.connect((self.host, self.port))
+        self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+
+
+def resolve_webhook() -> str:
+    w = os.environ.get("BITRIX24_WEBHOOK", "").strip()
+    if w:
+        return w
+    wf = os.environ.get("BITRIX24_WEBHOOK_FILE")
+    if not wf:
+        wf = str(pathlib.Path(__file__).resolve().parent / "webhook")
+    if os.path.isfile(wf):
+        return pathlib.Path(wf).read_text().strip()
+    sys.exit(
+        "ERROR: нет вебхука. Задай BITRIX24_WEBHOOK в skills/.env "
+        f"или файл {wf} (одна строка — URL с завершающим /)."
+    )
+
+
+def main() -> None:
+    load_skills_env()
+    if len(sys.argv) < 2:
+        sys.exit("usage: b24 <method> '<json-params>'")
+    method = sys.argv[1]
+    params = sys.argv[2] if len(sys.argv) > 2 else "{}"
+    try:
+        payload = json.dumps(json.loads(params))
+    except json.JSONDecodeError as e:
+        sys.exit(f"ERROR: невалидный JSON параметров: {e}")
+
+    url = resolve_webhook() + method + ".json"
+    u = urlparse(url)
+    if u.scheme == "https":
+        conn = MssHTTPSConnection(u.hostname, u.port, timeout=60)
+    elif u.scheme == "http":
+        conn = http.client.HTTPConnection(u.hostname, u.port, timeout=60)
+    else:
+        sys.exit(f"ERROR: неподдерживаемая схема вебхука: {u.scheme}")
+
+    path = u.path + (("?" + u.query) if u.query else "")
+    try:
+        conn.request("POST", path, body=payload, headers={"Content-Type": "application/json"})
+        resp = conn.getresponse()
+        body = resp.read().decode("utf-8", "replace")
+    except OSError as e:
+        sys.exit(f"ERROR: сетевая ошибка: {e}")
+    finally:
+        conn.close()
+
+    if resp.status >= 400:
+        sys.exit(f"ERROR: HTTP {resp.status}: {body[:500]}")
+    print(body)
+
+
+if __name__ == "__main__":
+    main()

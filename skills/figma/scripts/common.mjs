@@ -30,9 +30,20 @@ export async function openFigma() {
 	return { ctx, page };
 }
 
-/** Логин, если сессия протухла. Данные — FIGMA_DIR/creds (email\npassword) */
+/** Логин, если сессия протухла. Данные — FIGMA_EMAIL/FIGMA_PASSWORD из skills/.env
+ *  (fallback: файл FIGMA_DIR/creds, формат email\npassword). */
 export async function login(page) {
-	const [email, pass] = fs.readFileSync(`${FIGMA_DIR}/creds`, 'utf8').split('\n');
+	let email = process.env.FIGMA_EMAIL;
+	let pass = process.env.FIGMA_PASSWORD;
+	if (!email || !pass) {
+		const credsPath = `${FIGMA_DIR}/creds`;
+		if (fs.existsSync(credsPath)) {
+			const [e2, p2] = fs.readFileSync(credsPath, 'utf8').split('\n');
+			email = email || e2?.trim();
+			pass = pass || p2?.trim();
+		}
+	}
+	if (!email || !pass) throw new Error('Нет FIGMA_EMAIL/FIGMA_PASSWORD в skills/.env и нет FIGMA_DIR/creds');
 	await page.goto('https://www.figma.com/login', { waitUntil: 'domcontentloaded', timeout: 60000 });
 	await page.waitForTimeout(6000);
 	if (!/\/login/.test(page.url())) return true; // уже залогинены

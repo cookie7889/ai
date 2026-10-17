@@ -5,15 +5,13 @@ description: Доступ к Figma пользователя через headless-
 
 # Figma через Playwright (залогиненная сессия)
 
-Аккаунт: klim.vya@yandex.ru. Пути — в `~/.config/opencode/skills/.env`:
-`FIGMA_DIR` (creds + browser profile), `CHROMIUM_PATH`, `SKILLS_TMP_DIR`.
-Логин/пароль — `$FIGMA_DIR/creds` (email, пароль; chmod 600).
-НИКОГДА не выводи содержимое creds. Сессия браузера — `$FIGMA_DIR/profile`.
+Секреты — в `~/.config/opencode/skills/.env`: `FIGMA_EMAIL`, `FIGMA_PASSWORD`. НИКОГДА не выводи.
+`FIGMA_DIR` — папка браузерного профиля (куки/сессия; локальная, между ПК не синхронизируется,
+при первом запуске на новой машине `login.mjs` логинится сам и создаёт профиль).
+`CHROMIUM_PATH` / авто-подбор браузера — см. `scripts/env.mjs`.
 
 Скрипты: `~/.config/opencode/skills/figma/scripts/` (playwright-core в node_modules).
-Браузер: авто-подбор в `env.mjs` — сначала бандл-chromium из playwright-core
-(`~/.cache/ms-playwright/`), иначе `CHROMIUM_PATH` из .env. Запускать из этой папки.
-Временные файлы — в `$SKILLS_TMP_DIR/`, не в `/tmp`.
+Запускать из этой папки. Временные файлы — в `$SKILLS_TMP_DIR/`, не в `/tmp`.
 
 ## Команды
 
